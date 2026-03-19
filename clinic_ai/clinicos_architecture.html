@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClinicOS — Architecture Blueprint</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --teal: #00D4AA;
+    --teal-dark: #00A884;
+    --bg: #050E14;
+    --surface: #0A1A24;
+    --surface2: #0F2233;
+    --red: #FF4757;
+    --yellow: #FFD700;
+    --purple: #A78BFA;
+    --text: #E2F0F7;
+    --muted: #5A7A8A;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    overflow-x: hidden;
+  }
+
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  header {
+    padding: 40px 60px 20px;
+    border-bottom: 1px solid #0F2233;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .logo { 
+    font-size: 28px; font-weight: 800; letter-spacing: -1px;
+    color: var(--teal);
+  }
+  .logo span { color: var(--text); }
+
+  .tag {
+    background: var(--teal); color: var(--bg);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; padding: 4px 12px; border-radius: 20px;
+    font-weight: 700; letter-spacing: 1px;
+  }
+
+  .hero {
+    padding: 60px 60px 40px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 64px);
+    font-weight: 800; line-height: 1;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+  }
+
+  h1 em { color: var(--teal); font-style: normal; }
+
+  .subtitle {
+    color: var(--muted); font-size: 16px; max-width: 600px;
+    font-family: 'Space Mono', monospace; line-height: 1.6;
+  }
+
+  /* AGENT GRID */
+  .section-title {
+    padding: 40px 60px 20px;
+    font-size: 12px; font-family: 'Space Mono', monospace;
+    letter-spacing: 3px; color: var(--teal); text-transform: uppercase;
+  }
+
+  .agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 2px;
+    padding: 0 60px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .agent-card {
+    background: var(--surface);
+    padding: 32px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid transparent;
+  }
+
+  .agent-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--card-color);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.3s;
+  }
+
+  .agent-card:hover {
+    background: var(--surface2);
+    border-color: var(--card-color);
+  }
+
+  .agent-card:hover::before { transform: scaleX(1); }
+
+  .agent-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--card-color);
+    letter-spacing: 2px; margin-bottom: 16px;
+    display: block;
+  }
+
+  .agent-name {
+    font-size: 22px; font-weight: 800;
+    margin-bottom: 8px; letter-spacing: -0.5px;
+  }
+
+  .agent-codename {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .agent-desc {
+    font-size: 14px; color: var(--muted); line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .agent-channels {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+  }
+
+  .channel-badge {
+    background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2);
+    color: var(--teal); font-family: 'Space Mono', monospace;
+    font-size: 10px; padding: 3px 8px; border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .channel-badge.red { 
+    background: rgba(255,71,87,0.1); border-color: rgba(255,71,87,0.3); color: var(--red); 
+  }
+  .channel-badge.purple { 
+    background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.3); color: var(--purple); 
+  }
+  .channel-badge.yellow { 
+    background: rgba(255,215,0,0.1); border-color: rgba(255,215,0,0.3); color: var(--yellow); 
+  }
+
+  .agent-flow {
+    background: var(--bg);
+    border: 1px solid #0F2233;
+    padding: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    line-height: 1.8;
+    border-radius: 4px;
+  }
+
+  .flow-arrow { color: var(--card-color); }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-section {
+    padding: 40px 60px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid #0F2233;
+    padding: 40px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; line-height: 2;
+    position: relative;
+    overflow: auto;
+  }
+
+  .arch-diagram pre {
+    color: var(--muted);
+    white-space: pre;
+  }
+
+  .arch-diagram .highlight { color: var(--teal); }
+  .arch-diagram .warn { color: var(--yellow); }
+  .arch-diagram .danger { color: var(--red); }
+
+  /* DATA SCHEMA */
+  .schema-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; padding: 0 60px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .schema-card {
+    background: var(--surface); padding: 28px;
+    border-left: 3px solid var(--teal);
+  }
+
+  .schema-title {
+    font-size: 14px; font-weight: 700; color: var(--teal);
+    margin-bottom: 16px; font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .schema-field {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid #0F2233;
+    font-family: 'Space Mono', monospace; font-size: 12px;
+  }
+
+  .field-name { color: var(--text); min-width: 160px; }
+  .field-type { color: var(--purple); font-size: 10px; }
+
+  /* PROMPTS SECTION */
+  .prompts-section {
+    padding: 40px 60px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .prompt-card {
+    background: var(--surface);
+    border: 1px solid #0F2233;
+    margin-bottom: 2px;
+  }
+
+  .prompt-header {
+    padding: 20px 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .prompt-header:hover { background: var(--surface2); }
+
+  .prompt-title {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .prompt-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--teal);
+  }
+
+  .prompt-body {
+    padding: 0 28px 28px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px; line-height: 1.8;
+    color: #7A9BAB;
+    display: none;
+  }
+
+  .prompt-body.open { display: block; }
+
+  .prompt-code {
+    background: var(--bg);
+    padding: 20px; border-radius: 4px;
+    white-space: pre-wrap; word-break: break-word;
+    border: 1px solid #0F2233;
+  }
+
+  .copy-btn {
+    background: none; border: 1px solid var(--teal);
+    color: var(--teal); padding: 4px 12px;
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    cursor: pointer; letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { background: var(--teal); color: var(--bg); }
+
+  /* ROADMAP */
+  .roadmap {
+    padding: 40px 60px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .timeline {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+  }
+
+  .week-card {
+    background: var(--surface); padding: 28px;
+    border-top: 3px solid var(--surface2);
+    transition: border-color 0.2s;
+  }
+
+  .week-card:hover { border-color: var(--teal); }
+  .week-card:nth-child(1) { border-color: var(--teal); }
+  .week-card:nth-child(2) { border-color: var(--purple); }
+  .week-card:nth-child(3) { border-color: var(--yellow); }
+  .week-card:nth-child(4) { border-color: var(--red); }
+
+  .week-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; margin-bottom: 16px;
+    color: var(--muted);
+  }
+
+  .week-title {
+    font-size: 18px; font-weight: 800; margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+
+  .week-task {
+    display: flex; gap: 10px; padding: 6px 0;
+    font-size: 13px; color: var(--muted); align-items: flex-start;
+    line-height: 1.4;
+  }
+
+  .task-check { color: var(--teal); font-size: 12px; margin-top: 1px; flex-shrink: 0; }
+
+  /* REVENUE */
+  .revenue-section {
+    padding: 40px 60px 80px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  .revenue-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+  }
+
+  .rev-card {
+    background: var(--surface); padding: 32px; text-align: center;
+  }
+
+  .rev-month { 
+    font-family: 'Space Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .rev-clinics {
+    font-size: 42px; font-weight: 800; color: var(--teal);
+    letter-spacing: -2px;
+  }
+  .rev-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .rev-mrr { font-size: 18px; font-weight: 700; color: var(--yellow); }
+
+  footer {
+    text-align: center; padding: 40px;
+    border-top: 1px solid #0F2233;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted);
+  }
+
+  @media (max-width: 768px) {
+    header, .hero, .agents-grid, .arch-section, .schema-grid, 
+    .prompts-section, .roadmap, .revenue-section { padding-left: 20px; padding-right: 20px; }
+    .timeline { grid-template-columns: 1fr; }
+    .schema-grid { grid-template-columns: 1fr; }
+    .revenue-grid { grid-template-columns: 1fr 1fr; }
+    .agents-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header>
+  <div class="logo">Clinic<span>OS</span></div>
+  <div class="tag">ARCHITECTURE v1.0</div>
+</header>
+
+<div class="hero">
+  <h1>AI Platform for<br><em>Indian Clinics.</em></h1>
+  <p class="subtitle">6 specialized agents. 1 unified dashboard. Replace receptionist, social media team, and call center — all at zero cost to build.</p>
+</div>
+
+<!-- AGENTS -->
+<div class="section-title">// 01 — THE SIX AGENTS</div>
+<div class="agents-grid">
+
+  <div class="agent-card" style="--card-color: #00D4AA">
+    <span class="agent-num">AGENT 01</span>
+    <div class="agent-name">Reception Agent</div>
+    <div class="agent-codename">ReceptBot — WhatsApp AI Receptionist</div>
+    <div class="agent-desc">Handles all incoming patient messages. Books appointments, answers FAQs, collects patient info. Works 24/7, never misses a lead.</div>
+    <div class="agent-channels">
+      <span class="channel-badge">WHATSAPP</span>
+      <span class="channel-badge">GOOGLE CALENDAR</span>
+      <span class="channel-badge">FIRESTORE</span>
+      <span class="channel-badge">GEMINI</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> Incoming WA msg<br>
+      <span class="flow-arrow">→</span> Classify intent (Gemini)<br>
+      <span class="flow-arrow">→</span> Check available slots<br>
+      <span class="flow-arrow">→</span> Book + confirm + log
+    </div>
+  </div>
+
+  <div class="agent-card" style="--card-color: #A78BFA">
+    <span class="agent-num">AGENT 02</span>
+    <div class="agent-name">Reminder Agent</div>
+    <div class="agent-codename">NudgeBot — Automated Follow-up Engine</div>
+    <div class="agent-desc">Sends appointment reminders at 24hr and 2hr marks. Post-visit follow-up messages. Reduces no-shows by 60%.</div>
+    <div class="agent-channels">
+      <span class="channel-badge purple">CRON SCHEDULER</span>
+      <span class="channel-badge purple">WHATSAPP</span>
+      <span class="channel-badge purple">EMAIL</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> n8n Cron (hourly)<br>
+      <span class="flow-arrow">→</span> Query upcoming appts<br>
+      <span class="flow-arrow">→</span> Send reminders<br>
+      <span class="flow-arrow">→</span> Track delivery status
+    </div>
+  </div>
+
+  <div class="agent-card" style="--card-color: #FF4757">
+    <span class="agent-num">AGENT 03</span>
+    <div class="agent-name">Social Media Agent</div>
+    <div class="agent-codename">BuzzBot — Growth Marketing Engine</div>
+    <div class="agent-desc">Creates and posts clinic content 3x/week. Replies to comments. DMs potential patients. Grows the doctor's online presence automatically.</div>
+    <div class="agent-channels">
+      <span class="channel-badge red">INSTAGRAM</span>
+      <span class="channel-badge red">TWITTER/X</span>
+      <span class="channel-badge red">META API</span>
+      <span class="channel-badge red">GEMINI</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> Scheduled (Mon/Wed/Fri)<br>
+      <span class="flow-arrow">→</span> Generate post (Gemini)<br>
+      <span class="flow-arrow">→</span> Post to IG + Twitter<br>
+      <span class="flow-arrow">→</span> Monitor + auto-reply
+    </div>
+  </div>
+
+  <div class="agent-card" style="--card-color: #FFD700">
+    <span class="agent-num">AGENT 04</span>
+    <div class="agent-name">Call Agent</div>
+    <div class="agent-codename">VoiceBot — AI Phone Handler</div>
+    <div class="agent-desc">Answers incoming patient calls with natural voice AI. Takes messages, books appointments over phone. Full transcript saved to dashboard.</div>
+    <div class="agent-channels">
+      <span class="channel-badge yellow">VAPI.AI</span>
+      <span class="channel-badge yellow">TWILIO</span>
+      <span class="channel-badge yellow">GEMINI VOICE</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> Incoming call (Twilio)<br>
+      <span class="flow-arrow">→</span> VAPI handles voice<br>
+      <span class="flow-arrow">→</span> Transcribe + respond<br>
+      <span class="flow-arrow">→</span> Log full transcript
+    </div>
+  </div>
+
+  <div class="agent-card" style="--card-color: #FF4757">
+    <span class="agent-num">AGENT 05</span>
+    <div class="agent-name">Emergency Agent</div>
+    <div class="agent-codename">AlertBot — Critical Situation Detector</div>
+    <div class="agent-desc">Monitors ALL incoming messages across every channel. Detects emergency signals. Instantly notifies doctor via SMS. Never lets a critical case slip.</div>
+    <div class="agent-channels">
+      <span class="channel-badge red">ALL CHANNELS</span>
+      <span class="channel-badge red">SMS DOCTOR</span>
+      <span class="channel-badge red">PRIORITY QUEUE</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> Intercepts all messages<br>
+      <span class="flow-arrow">→</span> Emergency classification<br>
+      <span class="flow-arrow">→</span> SMS/call doctor NOW<br>
+      <span class="flow-arrow">→</span> Flag in dashboard RED
+    </div>
+  </div>
+
+  <div class="agent-card" style="--card-color: #00D4AA">
+    <span class="agent-num">AGENT 06</span>
+    <div class="agent-name">Onboarding Agent</div>
+    <div class="agent-codename">WelcomeBot — Doctor Setup Wizard</div>
+    <div class="agent-desc">When a new doctor signs up, automates their entire setup. Collects clinic info, configures all agents, sends welcome sequence. 30-min setup, zero manual work for you.</div>
+    <div class="agent-channels">
+      <span class="channel-badge">FIREBASE</span>
+      <span class="channel-badge">EMAIL</span>
+      <span class="channel-badge">N8N WORKFLOW</span>
+    </div>
+    <div class="agent-flow">
+      <span class="flow-arrow">→</span> New signup trigger<br>
+      <span class="flow-arrow">→</span> Collect clinic details<br>
+      <span class="flow-arrow">→</span> Auto-configure agents<br>
+      <span class="flow-arrow">→</span> Send welcome + guide
+    </div>
+  </div>
+
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="section-title">// 02 — SYSTEM FLOW</div>
+<div class="arch-section">
+  <div class="arch-diagram">
+    <pre>
+<span class="highlight">ALL INCOMING CHANNELS</span>
+  WhatsApp  │  Instagram DM  │  Twitter  │  Phone Call  │  Comment
+            │                │           │              │
+            └────────────────┴───────────┴──────────────┘
+                                         │
+                              <span class="warn">n8n MASTER WEBHOOK</span>
+                                         │
+                              ┌──────────▼──────────┐
+                              │   MASTER CLASSIFIER  │
+                              │   Google Gemini 1.5  │
+                              │   Flash API          │
+                              └──────────┬──────────┘
+                                         │
+             ┌───────────────────────────┼───────────────────────────┐
+             │               │           │           │               │
+     <span class="highlight">appointment</span>       <span class="danger">emergency</span>    <span class="highlight">query</span>     <span class="warn">social</span>      <span class="highlight">follow-up</span>
+             │               │           │           │               │
+      ReceptBot          <span class="danger">AlertBot</span>   ReceptBot   BuzzBot    NudgeBot
+             │               │           │           │               │
+             └───────────────┴───────────┴───────────┴───────────────┘
+                                         │
+                              <span class="highlight">UNIFIED INBOX DB</span>
+                              Firebase Firestore
+                              clinics/{id}/conversations/
+                                         │
+                              <span class="warn">DASHBOARD (Web App)</span>
+                              All conversations, stats, alerts
+    </pre>
+  </div>
+</div>
+
+<!-- PROMPTS -->
+<div class="section-title">// 03 — MASTER AI PROMPTS</div>
+<div class="prompts-section">
+
+  <div class="prompt-card">
+    <div class="prompt-header" onclick="togglePrompt(this)">
+      <div class="prompt-title"><div class="prompt-dot"></div> Master Classifier Prompt (n8n Gemini Node)</div>
+      <button class="copy-btn" onclick="copyPrompt(event, this)">COPY</button>
+    </div>
+    <div class="prompt-body">
+      <div class="prompt-code">You are ClinicOS, an AI assistant for a medical clinic in India.
+
+A message has arrived from channel: {{channel}}
+Message: {{message}}
+Sender: {{sender_phone}}
+Clinic: {{clinic_name}} ({{specialty}})
+
+Classify the intent as ONE of:
+- APPOINTMENT_BOOK: wants to book/schedule
+- APPOINTMENT_RESCHEDULE: wants to change timing
+- APPOINTMENT_CANCEL: wants to cancel
+- EMERGENCY: medical emergency, urgent, chest pain, accident, bleeding
+- GENERAL_QUERY: asking about services, fees, timing, location
+- SOCIAL_REPLY: comment/DM on social media
+- FOLLOWUP: post-visit question
+- UNKNOWN: cannot determine
+
+Respond ONLY with JSON:
+{"intent": "APPOINTMENT_BOOK", "confidence": 0.95, "language": "hindi/english/hinglish"}</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-header" onclick="togglePrompt(this)">
+      <div class="prompt-title"><div class="prompt-dot" style="background:#A78BFA"></div> Reception Agent Prompt</div>
+      <button class="copy-btn" onclick="copyPrompt(event, this)">COPY</button>
+    </div>
+    <div class="prompt-body">
+      <div class="prompt-code">You are ReceptBot, the AI receptionist for {{clinic_name}} in India.
+Doctor: Dr. {{doctor_name}} | Specialty: {{specialty}}
+Working hours: {{working_hours}}
+Services: {{services_list}}
+Fees: {{fees}}
+
+Patient message: {{message}}
+Intent: {{classified_intent}}
+Patient history: {{patient_history_if_any}}
+Available slots: {{available_slots}}
+
+Your job:
+1. Reply warmly in the SAME language as patient (Hindi/English/Hinglish)
+2. If booking — confirm slot, collect name+age+phone if new patient
+3. If query — answer from clinic info above
+4. Keep replies SHORT (WhatsApp style, under 100 words)
+5. Always end with a helpful next step
+
+Respond with JSON:
+{
+  "reply": "message to send patient",
+  "action": "book_appointment / send_info / escalate_to_doctor / none",
+  "appointment_details": {} 
+}</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-header" onclick="togglePrompt(this)">
+      <div class="prompt-title"><div class="prompt-dot" style="background:#FF4757"></div> Emergency Detection Prompt</div>
+      <button class="copy-btn" onclick="copyPrompt(event, this)">COPY</button>
+    </div>
+    <div class="prompt-body">
+      <div class="prompt-code">You are AlertBot, emergency detector for a medical clinic.
+
+Analyze this message for emergency signals:
+Message: {{message}}
+Channel: {{channel}}
+
+Emergency signals: chest pain, heart attack, difficulty breathing,
+unconscious, accident, heavy bleeding, stroke, seizure, severe pain,
+"doctor immediately", "emergency", "ambulance", critical condition
+
+Respond with JSON:
+{
+  "is_emergency": true/false,
+  "urgency_level": "critical/high/medium/low",
+  "emergency_type": "cardiac/respiratory/trauma/other/none",
+  "suggested_action": "call_doctor_immediately / send_emergency_info / normal_flow",
+  "patient_message": "Reassuring message to send patient in their language"
+}</div>
+    </div>
+  </div>
+
+  <div class="prompt-card">
+    <div class="prompt-header" onclick="togglePrompt(this)">
+      <div class="prompt-title"><div class="prompt-dot" style="background:#FFD700"></div> Social Media Post Generation Prompt</div>
+      <button class="copy-btn" onclick="copyPrompt(event, this)">COPY</button>
+    </div>
+    <div class="prompt-body">
+      <div class="prompt-code">You are BuzzBot, social media manager for {{clinic_name}}, 
+a {{specialty}} clinic in {{city}}, India.
+
+Generate a post for {{platform}} (Instagram / Twitter).
+Topic: {{topic}} (e.g. "dental hygiene tips", "monsoon health")
+Tone: Friendly, trustworthy, local Indian audience
+Doctor: Dr. {{doctor_name}}
+
+Rules:
+- Instagram: 150-200 words, story-style with emojis
+- Twitter/X: under 250 chars, punchy hook
+- Include 3-5 hashtags in Hindi+English
+- NEVER make false medical claims
+- Soft CTA: "Book your appointment: {{whatsapp_link}}"
+
+Return JSON:
+{
+  "caption": "...",
+  "hashtags": [...],
+  "suggested_image_description": "..."
+}</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ROADMAP -->
+<div class="section-title">// 04 — BUILD ROADMAP</div>
+<div class="roadmap">
+  <div class="timeline">
+    <div class="week-card">
+      <div class="week-label">WEEK 01 — FOUNDATION</div>
+      <div class="week-title">Core Setup</div>
+      <div class="week-task"><span class="task-check">✓</span> Web App (Login + Dashboard skeleton)</div>
+      <div class="week-task"><span class="task-check">✓</span> Firebase Auth + Firestore schema</div>
+      <div class="week-task"><span class="task-check">✓</span> n8n self-hosted (Railway)</div>
+      <div class="week-task"><span class="task-check">✓</span> Master Orchestrator flow</div>
+      <div class="week-task"><span class="task-check">✓</span> Twilio WhatsApp Sandbox</div>
+    </div>
+    <div class="week-card">
+      <div class="week-label">WEEK 02 — CORE AGENTS</div>
+      <div class="week-title">Patient Ops</div>
+      <div class="week-task"><span class="task-check">✓</span> Reception Agent (WA + Calendar)</div>
+      <div class="week-task"><span class="task-check">✓</span> Reminder Agent (Cron)</div>
+      <div class="week-task"><span class="task-check">✓</span> Emergency Agent</div>
+      <div class="week-task"><span class="task-check">✓</span> Unified Inbox in DB</div>
+    </div>
+    <div class="week-card">
+      <div class="week-label">WEEK 03 — GROWTH AGENTS</div>
+      <div class="week-title">Marketing</div>
+      <div class="week-task"><span class="task-check">✓</span> Social Media Agent (IG + X)</div>
+      <div class="week-task"><span class="task-check">✓</span> Call Agent (VAPI.ai)</div>
+      <div class="week-task"><span class="task-check">✓</span> Auto-comment replies</div>
+      <div class="week-task"><span class="task-check">✓</span> Content scheduler</div>
+    </div>
+    <div class="week-card">
+      <div class="week-label">WEEK 04 — LAUNCH</div>
+      <div class="week-title">Go Live</div>
+      <div class="week-task"><span class="task-check">✓</span> Onboarding Agent</div>
+      <div class="week-task"><span class="task-check">✓</span> Full Dashboard complete</div>
+      <div class="week-task"><span class="task-check">✓</span> First 2 clinic pilots</div>
+      <div class="week-task"><span class="task-check">✓</span> Collect feedback + iterate</div>
+    </div>
+  </div>
+</div>
+
+<!-- REVENUE -->
+<div class="section-title">// 05 — PATH TO ₹1 CRORE</div>
+<div class="revenue-section">
+  <div class="revenue-grid">
+    <div class="rev-card">
+      <div class="rev-month">MONTH 03</div>
+      <div class="rev-clinics">20</div>
+      <div class="rev-label">clinics</div>
+      <div class="rev-mrr">₹1 Lakh MRR</div>
+    </div>
+    <div class="rev-card">
+      <div class="rev-month">MONTH 06</div>
+      <div class="rev-clinics">100</div>
+      <div class="rev-label">clinics</div>
+      <div class="rev-mrr">₹5 Lakh MRR</div>
+    </div>
+    <div class="rev-card">
+      <div class="rev-month">MONTH 12</div>
+      <div class="rev-clinics">500</div>
+      <div class="rev-label">clinics</div>
+      <div class="rev-mrr">₹25 Lakh MRR</div>
+    </div>
+    <div class="rev-card">
+      <div class="rev-month">MONTH 18</div>
+      <div class="rev-clinics">2000</div>
+      <div class="rev-label">clinics</div>
+      <div class="rev-mrr">₹1 Cr MRR 🎯</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  CLINICOS ARCHITECTURE v1.0 — Built with Google Gemini + n8n + Firebase + Twilio
+  <br><br>
+  Next: Tell me which agent to build first → Start with Agent 01 (Reception)
+</footer>
+
+<script>
+function togglePrompt(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function copyPrompt(e, btn) {
+  e.stopPropagation();
+  const card = btn.closest('.prompt-card');
+  const code = card.querySelector('.prompt-code');
+  if (code) {
+    navigator.clipboard.writeText(code.innerText).then(() => {
+      btn.textContent = 'COPIED!';
+      setTimeout(() => btn.textContent = 'COPY', 2000);
+    });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<tr class="hover:bg-slate-50 transition-colors">
+    <td class="px-4 py-3 border-b border-slate-100">
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-teal-100 flex items-center justify-center text-xs font-bold text-teal-700">
+                {{ (appt.patient_name or '?')[0]|upper }}
+            </div>
+            <span class="text-sm font-medium text-slate-900">{{ appt.patient_name }}</span>
+        </div>
+    </td>
+    <td class="px-4 py-3 border-b border-slate-100 text-sm text-slate-600">{{ appt.patient_phone }}</td>
+    <td class="px-4 py-3 border-b border-slate-100 text-sm text-slate-600">{{ appt.start_time }}</td>
+    <td class="px-4 py-3 border-b border-slate-100">
+        {% set status_map = {
+            'CONFIRMED': ('bg-emerald-100 text-emerald-700', '●'),
+            'PENDING':   ('bg-amber-100 text-amber-700',   '●'),
+            'CANCELLED': ('bg-red-100 text-red-700',       '●'),
+            'COMPLETED': ('bg-slate-100 text-slate-600',   '●'),
+            'NO_SHOW':   ('bg-rose-100 text-rose-700',     '●')
+        } %}
+        {% set style = status_map.get(appt.status, ('bg-slate-100 text-slate-600', '●')) %}
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ style[0] }}">
+            <span class="text-[8px]">{{ style[1] }}</span>{{ appt.status }}
+        </span>
+    </td>
+    <td class="px-4 py-3 border-b border-slate-100 text-sm text-slate-500">
+        {% if appt.calendar_event_id %}
+        <span class="inline-flex items-center gap-1 text-emerald-600">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            Synced
+        </span>
+        {% else %}
+        <span class="text-slate-400">—</span>
+        {% endif %}
+    </td>
+</tr>

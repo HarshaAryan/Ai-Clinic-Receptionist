@@ -1,0 +1,24 @@
+<a href="/dashboard?tab=inbox&thread_id={{ thread.id }}"
+   class="block rounded-xl border p-3.5 transition-all duration-150
+          {% if selected_thread == thread.id %}border-teal-400 bg-teal-50 shadow-sm{% else %}border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm{% endif %}">
+    <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
+                {{ (thread.patient_name or '?')[0]|upper }}
+            </div>
+            <p class="font-semibold text-sm text-slate-900 truncate">{{ thread.patient_name }}</p>
+        </div>
+        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0
+              {% if thread.source == 'WHATSAPP' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+            {{ thread.source }}
+        </span>
+    </div>
+    <p class="text-xs text-slate-500 mt-2 truncate">{{ thread.last_message or 'No messages yet' }}</p>
+    <div class="flex items-center justify-between mt-2">
+        <p class="text-[10px] text-slate-400">{{ thread.patient_phone }}</p>
+        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded
+              {% if thread.takeover_enabled %}bg-red-100 text-red-600{% else %}bg-teal-100 text-teal-700{% endif %}">
+            {% if thread.takeover_enabled %}Manual{% else %}AI Active{% endif %}
+        </span>
+    </div>
+</a>
